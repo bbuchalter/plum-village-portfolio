@@ -26,6 +26,8 @@ services:
       WORDPRESS_DB_NAME: wordpress
     volumes:
       - wp_data:/var/www/html
+      - ./themes/plum-village:/var/www/html/wp-content/themes/plum-village
+      - ./plugins/plum-village-blocks:/var/www/html/wp-content/plugins/plum-village-blocks
 
   wpcli:
     image: wordpress:cli
@@ -39,6 +41,8 @@ services:
       WORDPRESS_DB_NAME: wordpress
     volumes:
       - wp_data:/var/www/html
+      - ./themes/plum-village:/var/www/html/wp-content/themes/plum-village
+      - ./plugins/plum-village-blocks:/var/www/html/wp-content/plugins/plum-village-blocks
     user: "33:33"
 
   adminer:

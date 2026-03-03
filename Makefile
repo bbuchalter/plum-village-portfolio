@@ -1,4 +1,4 @@
-.PHONY: up down logs wp setup export import-prod deploy
+.PHONY: up down logs wp setup export import-prod deploy theme-activate plugin-activate learndash-install block-dev block-build
 
 up:
 	docker compose up -d
@@ -23,6 +23,22 @@ import-prod:
 
 deploy:
 	fly deploy
+
+theme-activate:
+	docker compose run --rm wpcli wp theme activate plum-village
+
+plugin-activate:
+	docker compose run --rm wpcli wp plugin activate plum-village-blocks
+
+learndash-install:
+	docker compose cp sfwd-lms.5.0.2.zip wordpress:/tmp/sfwd-lms.zip
+	docker compose run --rm wpcli wp plugin install /var/www/html/../tmp/sfwd-lms.zip --activate
+
+block-dev:
+	cd plugins/plum-village-blocks && npm start
+
+block-build:
+	cd plugins/plum-village-blocks && npm run build
 
 # Catch-all to allow `make wp plugin list` style commands
 %:

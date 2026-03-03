@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "plum-village/dharma-talk",
+  "version": "1.0.0",
+  "title": "Dharma Talk",
+  "category": "widgets",
+  "icon": "microphone",
+  "description": "A structured card showing a dharma talk with teacher, duration, description, and link.",
+  "textdomain": "plum-village-blocks",
+  "attributes": {
+    "title": {
+      "type": "string",
+      "source": "html",
+      "selector": "h3"
+    },
+    "teacher": {
+      "type": "string",
+      "default": "Thich Nhat Hanh"
+    },
+    "duration": {
+      "type": "string",
+      "default": ""
+    },
+    "description": {
+      "type": "string",
+      "source": "html",
+      "selector": ".dharma-talk__description"
+    },
+    "mediaUrl": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": ["wide"]
+  },
+  "editorScript": "file:./index.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css"
+}

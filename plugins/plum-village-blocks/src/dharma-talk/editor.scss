@@ -1,0 +1,14 @@
+.wp-block-plum-village-dharma-talk {
+    h3 {
+        &[data-rich-text-placeholder]::before {
+            color: #999;
+        }
+    }
+
+    .dharma-talk__link-preview {
+        color: #2D5F2D;
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+}

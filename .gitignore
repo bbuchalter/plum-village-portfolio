@@ -10,6 +10,9 @@ data/
 # LearnDash plugin zip (large binary)
 sfwd-lms.*.zip
 
+# Node modules (block plugin)
+plugins/plum-village-blocks/node_modules/
+
 # OS files
 .DS_Store
 Thumbs.db

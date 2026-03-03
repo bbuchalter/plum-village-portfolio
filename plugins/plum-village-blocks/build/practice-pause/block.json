@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "plum-village/practice-pause",
+  "version": "1.0.0",
+  "title": "Practice Pause",
+  "category": "widgets",
+  "icon": "bell",
+  "description": "An interactive mindfulness bell. Click to hear the bell and follow a guided breathing exercise.",
+  "textdomain": "plum-village-blocks",
+  "attributes": {
+    "message": {
+      "type": "string",
+      "source": "html",
+      "selector": ".practice-pause__message",
+      "default": "Breathing in, I calm my body. Breathing out, I smile."
+    }
+  },
+  "supports": {
+    "html": false
+  },
+  "editorScript": "file:./index.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css",
+  "viewScript": "file:./view.js"
+}

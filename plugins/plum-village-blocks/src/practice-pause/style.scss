@@ -1,0 +1,86 @@
+.wp-block-plum-village-practice-pause {
+    text-align: center;
+    max-width: 480px;
+    margin: 2rem auto;
+    padding: 2rem 1.5rem;
+
+    // Bell button
+    .practice-pause__bell {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #2D5F2D;
+        color: #FAF7F0;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.25s ease, transform 0.25s ease;
+        margin-bottom: 1.25rem;
+
+        &:hover {
+            background: #1a3d1a;
+        }
+
+        &:focus-visible {
+            outline: 3px solid #2D5F2D;
+            outline-offset: 3px;
+        }
+
+        svg {
+            display: block;
+        }
+    }
+
+    // Ringing state — pulsing bell
+    &.ringing .practice-pause__bell {
+        animation: bell-pulse 1.5s ease-in-out infinite;
+    }
+
+    // Message text
+    .practice-pause__message {
+        font-family: 'Cormorant Garamond', 'Georgia', serif;
+        font-style: italic;
+        font-size: 1.15rem;
+        line-height: 1.6;
+        color: #333;
+        margin: 0 0 1rem;
+    }
+
+    // Breathing animation container
+    .practice-pause__breathing {
+        opacity: 0;
+        transition: opacity 0.5s ease;
+
+        &.visible {
+            opacity: 1;
+        }
+    }
+
+    .practice-pause__breathing-text {
+        font-family: 'Cormorant Garamond', 'Georgia', serif;
+        font-size: 1.3rem;
+        color: #2D5F2D;
+        margin: 0.5rem 0;
+        transition: opacity 0.5s ease;
+
+        &.fade-in {
+            opacity: 1;
+        }
+
+        &.fade-out {
+            opacity: 0.2;
+        }
+    }
+}
+
+@keyframes bell-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.08);
+    }
+}

@@ -68,6 +68,34 @@ done
 kill "$WP_PID" 2>/dev/null || true
 wait "$WP_PID" 2>/dev/null || true
 
+# Install custom theme and plugins from staging area
+echo "Installing custom theme and plugins..."
+
+# Custom theme
+if [ -d /usr/src/plum-village-theme ]; then
+  cp -r /usr/src/plum-village-theme /var/www/html/wp-content/themes/plum-village
+fi
+
+# Custom blocks plugin
+if [ -d /usr/src/plum-village-blocks ]; then
+  cp -r /usr/src/plum-village-blocks /var/www/html/wp-content/plugins/plum-village-blocks
+fi
+
+# LearnDash
+if [ -f /usr/src/sfwd-lms.zip ] && [ ! -d /var/www/html/wp-content/plugins/sfwd-lms ]; then
+  echo "Installing LearnDash..."
+  unzip -q /usr/src/sfwd-lms.zip -d /var/www/html/wp-content/plugins/
+fi
+
+# BuddyPress
+if [ -f /usr/src/buddypress.zip ] && [ ! -d /var/www/html/wp-content/plugins/buddypress ]; then
+  echo "Installing BuddyPress..."
+  unzip -q /usr/src/buddypress.zip -d /var/www/html/wp-content/plugins/
+fi
+
+# Fix ownership for all wp-content
+chown -R www-data:www-data /var/www/html/wp-content
+
 # Re-symlink uploads after WordPress entrypoint may have recreated wp-content
 ln -sfn "$UPLOADS_DIR" /var/www/html/wp-content/uploads
 
