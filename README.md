@@ -12,6 +12,18 @@ The portfolio needs a CMS that supports online learning (LearnDash), community f
 
 The engineering challenge is making WordPress *development* modern — version-controlled, reproducible, and deployable from the terminal.
 
+## What's Demonstrated
+
+This portfolio demonstrates the technical skills required for the Plum Village Senior Web Developer role:
+
+- **Custom theme development** — Block theme with FSE templates, `theme.json` design system, LearnDash template overrides
+- **Custom plugin development** — 3 Gutenberg blocks: Dharma Talk (static), Practice Pause (interactive JS), Course Grid (dynamic ServerSideRender)
+- **PHP** — LearnDash template overrides (`learndash_get_course_steps()`, `learndash_is_lesson_complete()`), server-side block rendering, WordPress hooks/filters
+- **JavaScript** — Vanilla JS breathing exercise, React block editors with InspectorControls, `@wordpress/server-side-render`
+- **SASS** — Per-block `style.scss` (frontend) and `editor.scss` (editor) compiled via `@wordpress/scripts`
+- **LearnDash** — Demo course with custom templates, lesson progress tracking, dynamic Course Grid block
+- **Git & DevOps** — Docker Compose local dev, Railway production with managed MySQL, WP-CLI content pipeline
+
 ## Architecture
 
 ```
@@ -67,6 +79,12 @@ make up
 # First time only: install WordPress and configure permalinks
 make setup
 
+# Install LearnDash plugin
+make learndash-install
+
+# Seed demo content (1 course, 4 lessons, portfolio page)
+make seed
+
 # View logs
 make logs
 
@@ -113,6 +131,23 @@ The `plum-village-blocks` plugin uses WordPress's `@wordpress/scripts` toolchain
 make block-dev    # Start webpack dev server with hot reload
 make block-build  # Production build
 ```
+
+Three blocks:
+
+| Block | Type | Description |
+|-------|------|-------------|
+| **Dharma Talk** | Static | Card with teacher, duration, description — data entered in editor via RichText |
+| **Practice Pause** | Interactive | Mindfulness bell with timed breathing exercise — vanilla JS state machine |
+| **Course Grid** | Dynamic | Queries LearnDash courses at render time — React editor with ServerSideRender + PHP render callback |
+
+### LearnDash integration
+
+LearnDash content is seeded via WP-CLI (`make seed`), which creates:
+
+- 1 course ("Foundations of Mindfulness") with 4 lessons
+- A "Technical Skills Portfolio" page documenting what the site demonstrates
+
+The theme overrides LearnDash's content templates (`themes/plum-village/learndash/`) for custom course and lesson rendering, plus block theme templates (`templates/single-sfwd-*.html`) for page structure.
 
 ## Content Pipeline
 
@@ -231,6 +266,10 @@ Railway normally only uploads git-tracked files. The LearnDash plugin zip (`sfwd
 
 **Don't `source .env` in bash scripts.** Values with spaces and special characters break shell parsing. Use `grep '^VAR_NAME=' .env | cut -d= -f2-` to extract individual variables safely.
 
+**LearnDash template overrides are content templates, not page templates.** The `learndash_template` filter intercepts templates that render inside `the_content()`. Calling `get_header()` or `the_content()` inside a LearnDash template override causes infinite recursion. The templates receive extracted variables (`$course_id`, `$content`, `$lessons`) and should output HTML directly. Page structure comes from block theme templates (`templates/single-sfwd-courses.html`).
+
+**LearnDash lesson URLs are nested under courses.** Lessons live at `/courses/{course}/lessons/{lesson}/`, not `/lessons/{lesson}/`. A direct lesson URL redirects (302) to the nested version. Always use `get_permalink()` for LearnDash URLs.
+
 ## Project Structure
 
 ```
@@ -238,17 +277,25 @@ Railway normally only uploads git-tracked files. The LearnDash plugin zip (`sfwd
 │   └── php.ini                    # PHP overrides (upload limits, memory)
 ├── plugins/
 │   └── plum-village-blocks/       # Custom Gutenberg block plugin
-│       ├── src/                   # Block source (JSX)
+│       ├── src/                   # Block source (JSX, SCSS)
+│       │   ├── dharma-talk/       # Static block
+│       │   ├── practice-pause/    # Interactive block (vanilla JS)
+│       │   └── course-grid/       # Dynamic block (ServerSideRender)
 │       └── build/                 # Compiled block assets
 ├── themes/
 │   └── plum-village/              # Custom block theme
-│       ├── theme.json             # Theme settings and styles
-│       ├── functions.php          # Theme functions
-│       ├── templates/             # Block templates
-│       ├── parts/                 # Template parts
+│       ├── theme.json             # Design system (8 colors, 2 fonts, 5 spacing sizes)
+│       ├── functions.php          # Theme setup + LearnDash hooks
+│       ├── learndash/             # LearnDash template overrides
+│       │   ├── course.php         # Single course: lesson list, progress, CTA
+│       │   ├── lesson.php         # Single lesson: breadcrumbs, prev/next nav
+│       │   └── course_list_template.php  # Course archive grid
+│       ├── templates/             # Block templates (incl. sfwd-courses, sfwd-lessons)
+│       ├── parts/                 # Template parts (header, footer)
 │       └── patterns/              # Block patterns
 ├── scripts/
 │   ├── setup.sh                   # Local WP install via WP-CLI
+│   ├── seed-content.sh            # Create demo courses, lessons, portfolio page
 │   ├── entrypoint.sh              # Production container boot sequence
 │   ├── export-content.sh          # Dump local DB → data/seed.sql
 │   └── import-content.sh          # Push DB to Railway + URL rewrite

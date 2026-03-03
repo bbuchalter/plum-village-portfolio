@@ -10,6 +10,8 @@ WordPress learning portfolio for Plum Village. Local dev via Docker Compose, pro
 
 - `make up` / `make down` — start/stop local dev
 - `make setup` — first-time WordPress install (admin/admin)
+- `make learndash-install` — install LearnDash plugin locally (copies zip to shared volume)
+- `make seed` — create demo courses, lessons, and portfolio page via WP-CLI (idempotent)
 - `make wp <command>` — run WP-CLI (e.g., `make wp plugin list`)
 - `make deploy` — deploy to Railway (`railway up --no-gitignore`)
 - `make export` — dump local DB to `data/seed.sql`
@@ -43,6 +45,13 @@ WordPress learning portfolio for Plum Village. Local dev via Docker Compose, pro
 2. Remove conflicting Apache MPM modules (Railway re-enables `mpm_event` at runtime)
 3. Delegate to `docker-entrypoint.sh` (generates wp-config.php, exec's Apache)
 
+### LearnDash Integration
+- **Demo content**: `scripts/seed-content.sh` creates 1 course ("Foundations of Mindfulness") with 4 lessons, plus a Portfolio skills page — idempotent by slug check
+- **Template overrides**: `themes/plum-village/learndash/{course,lesson,course_list_template}.php` — content templates loaded inside `the_content()` via `learndash_template` filter (NOT full page templates — no `get_header()`/`get_footer()`)
+- **Block templates**: `templates/single-sfwd-courses.html`, `single-sfwd-lessons.html`, `archive-sfwd-courses.html` — page wrappers for LearnDash post types
+- **Course Grid block**: Dynamic Gutenberg block (`plum-village/course-grid`) with React editor (InspectorControls + ServerSideRender) and PHP render callback
+- **LearnDash data model**: `sfwd-courses` + `sfwd-lessons` post types, linked via `learndash_update_setting( $lesson_id, 'course', $course_id )`
+
 ### Content Pipeline
 - One-direction: local → production (full database replacement)
 - `make export` dumps local DB, `make import-prod` pushes it
@@ -56,6 +65,9 @@ WordPress learning portfolio for Plum Village. Local dev via Docker Compose, pro
 - **`railway ssh` splits arguments with spaces**: Use direct MySQL connection for DB operations, or `wp option update` for single-word values only
 - **`railway up` only uploads git-tracked files**: Use `--no-gitignore` flag; `.dockerignore` controls the build context instead
 - **Don't `source .env`**: Values with spaces/special chars break. Use `grep` + `cut` to extract individual variables
+- **LearnDash template overrides are content templates**: They render inside `the_content()`, not as full page templates. Calling `get_header()`/`get_footer()` causes infinite recursion. Use the extracted variables (`$course_id`, `$content`, `$lessons`, etc.)
+- **`learndash_course_update_steps()` doesn't exist in LD 5.0.2**: Use `learndash_update_setting()` for lesson-course association and `wp rewrite flush` after seeding
+- **LearnDash lesson URLs are nested**: `/courses/{course}/lessons/{lesson}/`, not `/lessons/{lesson}/`
 
 ## Secrets
 
@@ -69,8 +81,14 @@ WordPress learning portfolio for Plum Village. Local dev via Docker Compose, pro
 ```
 config/php.ini                     # PHP overrides (upload limits, memory)
 plugins/plum-village-blocks/       # Custom Gutenberg block plugin (src/ → build/)
+  src/dharma-talk/                 # Static block: dharma talk card
+  src/practice-pause/              # Interactive block: breathing exercise (vanilla JS)
+  src/course-grid/                 # Dynamic block: LearnDash course grid (ServerSideRender)
 themes/plum-village/               # Custom block theme (theme.json, templates, patterns)
+  learndash/                       # LearnDash template overrides (course, lesson, archive)
+  templates/                       # Block templates (includes sfwd-courses/sfwd-lessons)
 scripts/setup.sh                   # Local WP install
+scripts/seed-content.sh            # Create demo courses, lessons, portfolio page (idempotent)
 scripts/entrypoint.sh              # Production boot sequence
 scripts/export-content.sh          # Local DB → data/seed.sql
 scripts/import-content.sh          # DB → Railway + URL rewrite + credential reset
