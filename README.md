@@ -43,15 +43,16 @@ make wp user list
 ```bash
 fly apps create plum-village-portfolio
 fly volumes create wp_data --region cdg --size 1
-fly secrets set WORDPRESS_DB_PASSWORD=<generate-a-strong-password>
+fly secrets set WORDPRESS_DB_PASSWORD=$(openssl rand -base64 24)
 fly deploy
 fly ssh console -C "wp core install \
   --url='https://plum-village-portfolio.fly.dev' \
   --title='Plum Village Portfolio' \
   --admin_user=admin \
   --admin_password=<CHANGE_ME> \
-  --admin_email=admin@example.com \
+  --admin_email=<YOUR_EMAIL> \
   --path=/var/www/html --allow-root"
+fly ssh console -C "wp rewrite structure '/%postname%/' --path=/var/www/html --allow-root"
 ```
 
 ### Subsequent deploys
@@ -59,6 +60,14 @@ fly ssh console -C "wp core install \
 ```bash
 make deploy
 ```
+
+### Architecture notes
+
+The production container runs WordPress + MariaDB in a single Fly.io machine
+via supervisord, with a persistent Fly volume mounted at `/data` for the
+database and uploads. The entrypoint script initializes MariaDB on first boot,
+then delegates to the upstream WordPress docker-entrypoint to populate
+`/var/www/html` before handing off to supervisord.
 
 ## Content Sync (Local to Production)
 
