@@ -17,7 +17,7 @@ COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # WordPress database config for local MariaDB
 # WORDPRESS_DB_PASSWORD must be set via fly secrets in production
-ENV WORDPRESS_DB_HOST=localhost
+ENV WORDPRESS_DB_HOST=127.0.0.1
 ENV WORDPRESS_DB_USER=wordpress
 ENV WORDPRESS_DB_NAME=wordpress
 

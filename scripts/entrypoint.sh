@@ -18,8 +18,15 @@ if [ ! -d "$MYSQL_DATA_DIR/mysql" ]; then
 fi
 
 # Point MariaDB at the persistent volume
+# Remove the directory that the MariaDB package created at build time,
+# then replace it with a symlink into the Fly volume.
+rm -rf /var/lib/mysql
 ln -sfn "$MYSQL_DATA_DIR" /var/lib/mysql
 chown -R mysql:mysql "$MYSQL_DATA_DIR"
+
+# Ensure MariaDB socket directory exists
+mkdir -p /run/mysqld
+chown mysql:mysql /run/mysqld
 
 # Start MariaDB temporarily to create the WordPress database
 echo "Starting MariaDB for initial setup..."
@@ -48,6 +55,21 @@ EOSQL
 # Stop the temporary MariaDB
 kill "$MARIADB_PID"
 wait "$MARIADB_PID" 2>/dev/null || true
+
+# Run the WordPress docker-entrypoint to populate /var/www/html with WP files
+# (it's a no-op if files already exist)
+echo "Running WordPress entrypoint..."
+docker-entrypoint.sh apache2 &>/dev/null &
+WP_PID=$!
+# Wait for wp-config.php to be created, which signals WP files are ready
+until [ -f /var/www/html/wp-config.php ]; do
+  sleep 1
+done
+kill "$WP_PID" 2>/dev/null || true
+wait "$WP_PID" 2>/dev/null || true
+
+# Re-symlink uploads after WordPress entrypoint may have recreated wp-content
+ln -sfn "$UPLOADS_DIR" /var/www/html/wp-content/uploads
 
 echo "Starting supervisord..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
