@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load .env for WP_ADMIN_PASSWORD
-if [ -f .env ]; then
-  # shellcheck disable=SC1091
-  source .env
+# Read WP_ADMIN_PASSWORD from .env (can't source the whole file — other
+# values contain spaces/special chars that break bash)
+if [ -f .env ] && [ -z "${WP_ADMIN_PASSWORD:-}" ]; then
+  WP_ADMIN_PASSWORD=$(grep '^WP_ADMIN_PASSWORD=' .env | cut -d= -f2-)
 fi
 
 if [ ! -f data/seed.sql ]; then

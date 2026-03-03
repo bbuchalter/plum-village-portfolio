@@ -43,6 +43,7 @@ Boot sequence:
 - **`ln -sfn` vs real directories**: Can't symlink over a non-empty directory; must `rm -rf /var/lib/mysql` first
 - **PHP MySQL socket**: When `WORDPRESS_DB_HOST=localhost`, PHP uses Unix socket (which has no default path configured). Use `127.0.0.1` to force TCP connection instead.
 - **WordPress files in production**: Our custom `ENTRYPOINT` replaces the upstream one, so WordPress files don't get copied to `/var/www/html` automatically. Must explicitly call `docker-entrypoint.sh` in our entrypoint.
+- **`.env` sourcing**: Can't `source .env` in bash scripts — the Fly API key contains spaces and special chars that break parsing. Use `grep` + `cut` to extract individual variables instead.
 
 ## Secrets Management
 
