@@ -1,67 +1,67 @@
 # Plum Village Portfolio
 
-A WordPress-based learning portfolio for Plum Village, deployed on [Fly.io](https://fly.io). This project demonstrates a complete local-to-production workflow for WordPress using Docker, WP-CLI, and infrastructure-as-code — no manual clicking through dashboards.
+A WordPress-based learning portfolio for Plum Village, deployed on [Railway](https://railway.app).
+
+**Production URL**: https://plum-village-portfolio.buchalter.dev
+
+This project demonstrates a complete local-to-production workflow for WordPress using Docker, WP-CLI, and infrastructure-as-code. All setup, deployment, and content management happens from the command line — no clicking through dashboards.
 
 ## Why WordPress?
 
-The portfolio needs a CMS that supports online learning features (LearnDash), community interaction (BuddyPress), and content management by non-developers. WordPress is the practical choice: it has the plugin ecosystem, and the people who will maintain the content already know it.
+The portfolio needs a CMS that supports online learning (LearnDash), community features (BuddyPress), and content management by non-developers. WordPress has the plugin ecosystem, and the people maintaining the content already know it.
 
-The challenge is making WordPress *development* feel modern — version-controlled, reproducible, and deployable from the command line.
+The engineering challenge is making WordPress *development* modern — version-controlled, reproducible, and deployable from the terminal.
 
-## Architecture Overview
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  Local Development                   │
-│                                                      │
-│  docker compose up                                   │
-│  ┌──────────┐  ┌──────────┐  ┌───────┐  ┌────────┐ │
-│  │ WordPress │  │ MariaDB  │  │WP-CLI │  │Adminer │ │
-│  │ :8000     │→ │ :3306    │  │(tasks)│  │ :8080  │ │
-│  └──────────┘  └──────────┘  └───────┘  └────────┘ │
-└─────────────────────────────────────────────────────┘
-        │
-        │  make export → data/seed.sql → make import-prod
-        ▼
-┌─────────────────────────────────────────────────────┐
-│              Production (Fly.io)                      │
-│                                                      │
-│  Single container, managed by supervisord            │
-│  ┌──────────────────────────────────────────┐       │
-│  │           supervisord                     │       │
-│  │  ┌──────────┐      ┌──────────┐          │       │
-│  │  │  Apache   │  →   │ MariaDB  │          │       │
-│  │  │  :80      │      │ :3306    │          │       │
-│  │  └──────────┘      └──────────┘          │       │
-│  └──────────────────────────────────────────┘       │
-│                        │                             │
-│  Fly Volume (/data)    │                             │
-│  ├── mysql/     ←──────┘ (symlinked)                │
-│  └── uploads/       (symlinked to wp-content)       │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                Local Development                      │
+│                                                       │
+│  docker compose up                                    │
+│  ┌───────────┐  ┌──────────┐  ┌───────┐  ┌────────┐ │
+│  │ WordPress  │  │ MariaDB  │  │WP-CLI │  │Adminer │ │
+│  │ :8000      │→ │ :3306    │  │(tasks)│  │ :8080  │ │
+│  └───────────┘  └──────────┘  └───────┘  └────────┘ │
+└──────────────────────────────────────────────────────┘
+       │
+       │  make export → data/seed.sql → make import-prod
+       ▼
+┌──────────────────────────────────────────────────────┐
+│             Production (Railway)                      │
+│                                                       │
+│  ┌───────────┐       ┌─────────────────────┐         │
+│  │ WordPress  │  →    │ MySQL (managed)     │         │
+│  │  Apache    │       │ Railway service     │         │
+│  │  :80       │       │ automatic backups   │         │
+│  └───────────┘       └─────────────────────┘         │
+│       │                                               │
+│  Railway Volume (/data)                               │
+│  └── uploads/       (symlinked to wp-content)         │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Why a single container?
+### Design decisions
 
-Most WordPress hosting uses two machines — one for the web server, one for the database. For a low-traffic portfolio site, that's unnecessary cost and complexity. Fly.io's smallest VM (shared-cpu-1x, 512MB) runs WordPress + MariaDB comfortably in a single container managed by [supervisord](http://supervisord.org/). The database and uploads live on a persistent Fly volume, so data survives container restarts and redeploys.
+**Two-service production architecture.** WordPress and MySQL run as separate Railway services. An earlier Fly.io setup bundled MariaDB inside the WordPress container with supervisord — it kept OOM-crashing on 512MB VMs. Extracting the database into a managed service eliminated that class of problems. The WordPress container now runs Apache as its single process.
 
-This is an intentional trade-off: simplicity and cost over high availability. If the site needed to scale, we'd split the database into a managed service.
+**WordPress core baked into the image.** The Dockerfile copies WordPress core files at build time (`cp -a /usr/src/wordpress/. /var/www/html/`). This is necessary because our custom `ENTRYPOINT` replaces the upstream WordPress image's entrypoint, which normally populates `/var/www/html` on first boot. We call `docker-entrypoint.sh` from our entrypoint to preserve the wp-config.php generation behavior.
 
-### Why Fly.io?
+**Full database replacement for content sync.** WordPress stores absolute URLs, serialized PHP objects, and auto-incremented IDs across interconnected tables. There's no clean way to merge two WordPress databases. Instead, content is authored locally and the entire production database is replaced on import. This works because the site is a portfolio — there's no user-generated content to preserve.
 
-Fly.io runs Docker containers on lightweight VMs close to users. The Paris (`cdg`) region puts the server near Plum Village in France. The free tier and $5/month volume make it viable for a small project, and the `fly` CLI enables fully scripted deployments — no web console needed.
+**Direct MySQL connection for imports.** The `railway ssh` command has argument quoting issues (spaces get split, flags get swallowed inside `bash -c` wrappers). The import script bypasses SSH entirely by connecting to Railway's public MySQL endpoint directly through the local MariaDB Docker container.
 
 ## Local Development
 
 ### Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Fly.io CLI](https://fly.io/docs/flyctl/install/) (for deployment only)
+- [Railway CLI](https://docs.railway.app/guides/cli) (for deployment and production management)
 
 ### Getting started
 
 ```bash
-# Start all services (WordPress, MariaDB, Adminer)
+# Start all services
 make up
 
 # First time only: install WordPress and configure permalinks
@@ -74,7 +74,7 @@ make logs
 make down
 ```
 
-After `make setup`, two services are available:
+After `make setup`:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
@@ -85,24 +85,18 @@ After `make setup`, two services are available:
 
 Docker Compose runs four services:
 
-1. **WordPress** (`wordpress:6.9.1-php8.3-apache`) — the web server, mounted to a named volume so WordPress core files persist across restarts
-2. **MariaDB** (`mariadb:11`) — the database, also on a named volume
-3. **WP-CLI** (`wordpress:cli`) — a disposable container that shares WordPress's volume, used for scripted admin tasks
-4. **Adminer** — a lightweight database GUI for inspecting tables directly
+1. **WordPress** (`wordpress:6.9.1-php8.3-apache`) — web server, files persisted to a named volume
+2. **MariaDB** (`mariadb:11`) — database, also on a named volume
+3. **WP-CLI** (`wordpress:cli`) — disposable container for scripted admin tasks, shares WordPress's volume
+4. **Adminer** — lightweight database GUI
 
-The WP-CLI container is the key to the headless workflow. Instead of clicking through the WordPress installer in a browser, `make setup` runs:
+The WP-CLI container is the key to the headless workflow. `make setup` runs the WordPress installer via WP-CLI, making the environment reproducible from a single command.
 
-```bash
-wp core install --url="http://localhost:8000" --title="Plum Village Portfolio" \
-  --admin_user=admin --admin_password=admin --admin_email=admin@example.com
-wp rewrite structure '/%postname%/'
-```
-
-This makes WordPress setup reproducible — anyone can clone the repo, run two commands, and have an identical local environment.
+The custom theme and block plugin are bind-mounted into the WordPress container, so changes appear immediately without rebuilding.
 
 ### WP-CLI
 
-Any WP-CLI command can be run through Make:
+Any WP-CLI command works through Make:
 
 ```bash
 make wp plugin list
@@ -111,17 +105,26 @@ make wp user list
 make wp post list
 ```
 
+### Custom block development
+
+The `plum-village-blocks` plugin uses WordPress's `@wordpress/scripts` toolchain:
+
+```bash
+make block-dev    # Start webpack dev server with hot reload
+make block-build  # Production build
+```
+
 ## Content Pipeline
 
-Content flows one direction: **local → production**. Author content locally, then push it to production when ready.
+Content flows one direction: **local → production**.
 
-### Export
+### Export local database
 
 ```bash
 make export
 ```
 
-This dumps the local database to `data/seed.sql` using WP-CLI's `db export` command.
+Dumps the local database to `data/seed.sql` using WP-CLI's `db export`.
 
 ### Import to production
 
@@ -129,47 +132,50 @@ This dumps the local database to `data/seed.sql` using WP-CLI's `db export` comm
 make import-prod
 ```
 
-This script does four things:
+This script (`scripts/import-content.sh`) does three things:
 
-1. **Uploads** `data/seed.sql` to the production container via `fly ssh sftp`
-2. **Imports** the SQL dump, replacing the entire production database
-3. **Rewrites URLs** — WordPress stores absolute URLs in the database (in post content, options, metadata). `wp search-replace` finds every instance of `http://localhost:8000` and replaces it with `https://plum-village-portfolio.fly.dev`
-4. **Resets production admin credentials** — since the import overwrites the production database with local data, the admin user reverts to local credentials (admin/admin). The script restores the production email and password from `.env`
+1. **Imports** `data/seed.sql` into Railway's MySQL via a direct connection (using the local MariaDB container as the client, connecting to Railway's public MySQL endpoint)
+2. **Rewrites URLs** — `wp search-replace` replaces every `http://localhost:8000` with the production URL across all tables, including inside serialized PHP data
+3. **Resets admin credentials** — since the import overwrites the production database with local data, the admin user reverts to local credentials. The script restores the production password from `.env`
 
-### Why full database replacement?
+### Required environment variables
 
-WordPress doesn't have a clean way to merge databases. Content, settings, permalinks, widget configurations, and plugin state are all stored in the same database with auto-incremented IDs and serialized PHP data. A targeted merge would need to handle foreign key relationships, serialized data formats, and potential ID conflicts.
+The import script reads from `.env` (see `.env.example`):
 
-Full replacement is simple and reliable. The trade-off is that production-only changes (like comments or form submissions) get overwritten. For a portfolio site where all content is authored locally, this is acceptable.
+- `MYSQL_PUBLIC_URL` — Railway's public MySQL connection string (find it in Railway dashboard under the MySQL service)
+- `WP_ADMIN_PASSWORD` — production admin password
 
 ## Production Deployment
 
-### First-time setup
+### First-time Railway setup
 
 ```bash
-# Create the Fly.io app
-fly apps create plum-village-portfolio
+# Create a Railway project
+railway init
 
-# Create a 1GB persistent volume in Paris
-fly volumes create wp_data --region cdg --size 1
+# Add managed MySQL
+railway add --database mysql
 
-# Set the database password (the only secret not in the container)
-fly secrets set WORDPRESS_DB_PASSWORD=$(openssl rand -base64 24)
+# Create a WordPress service and set env vars (via Railway dashboard):
+#   WORDPRESS_DB_HOST    = ${{MySQL.MYSQLHOST}}
+#   WORDPRESS_DB_USER    = ${{MySQL.MYSQLUSER}}
+#   WORDPRESS_DB_PASSWORD = ${{MySQL.MYSQLPASSWORD}}
+#   WORDPRESS_DB_NAME    = ${{MySQL.MYSQLDATABASE}}
+#   PORT                 = 80
 
-# Build and deploy the container
-fly deploy
+# Create a volume on the WordPress service, mounted at /data
 
-# Install WordPress on production
-fly ssh console -C "wp core install \
-  --url='https://plum-village-portfolio.fly.dev' \
-  --title='Plum Village Portfolio' \
-  --admin_user=admin \
-  --admin_password=<CHANGE_ME> \
-  --admin_email=<YOUR_EMAIL> \
-  --path=/var/www/html --allow-root"
+# Add a custom domain (or use the generated railway.app subdomain)
+railway domain
 
-# Set human-readable permalink structure
-fly ssh console -C "wp rewrite structure '/%postname%/' --path=/var/www/html --allow-root"
+# Link CLI to the wordpress service
+railway service wordpress
+
+# Build and deploy
+make deploy
+
+# Push local content to production
+make export && make import-prod
 ```
 
 ### Subsequent deploys
@@ -178,60 +184,81 @@ fly ssh console -C "wp rewrite structure '/%postname%/' --path=/var/www/html --a
 make deploy
 ```
 
+This runs `railway up --no-gitignore`, which uploads all project files (including the gitignored LearnDash zip) and builds the Docker image on Railway.
+
 ### The production container
 
-The Dockerfile starts from the official WordPress image and adds MariaDB and supervisord. This deserves some explanation because it's the most non-standard part of the setup.
+The Dockerfile builds a single-process container:
 
-The official WordPress Docker image has its own entrypoint script (`docker-entrypoint.sh`) that copies WordPress files into `/var/www/html` and generates `wp-config.php`. Since we define a custom `ENTRYPOINT` in our Dockerfile (to initialize MariaDB), we lose that upstream behavior. Our entrypoint must explicitly call the WordPress entrypoint, wait for it to finish populating files, then hand off to supervisord.
+- Starts from `wordpress:6.9.1-php8.3-apache`
+- Installs WP-CLI for remote admin tasks via `railway ssh`
+- Bakes in WordPress core files, the custom theme, and all plugins (plum-village-blocks, LearnDash, BuddyPress)
+- Runs Apache as the only process — no supervisor, no bundled database
 
-The boot sequence (`scripts/entrypoint.sh`):
+The entrypoint (`scripts/entrypoint.sh`) handles three things at boot:
 
-```
-1. Create data directories on Fly volume (/data/mysql, /data/uploads)
-2. Symlink uploads into wp-content
-3. Initialize MariaDB data directory (first boot only)
-4. Symlink /data/mysql → /var/lib/mysql (rm -rf the existing directory first)
-5. Start MariaDB temporarily, create database and user
-6. Stop MariaDB
-7. Run WordPress docker-entrypoint.sh to populate /var/www/html
-8. Start supervisord (Apache + MariaDB as long-running processes)
-```
+1. Creates the uploads directory on the persistent volume (`/data/uploads`)
+2. Symlinks it into `wp-content/uploads`
+3. Disables conflicting Apache MPM modules (Railway's runtime re-enables `mpm_event` alongside `mpm_prefork`)
+4. Delegates to WordPress's `docker-entrypoint.sh`, which generates `wp-config.php` from `WORDPRESS_DB_*` env vars and exec's Apache
 
 ### Secrets management
 
-Production secrets are managed separately from the codebase:
+- **`.env`** (gitignored) — contains `MYSQL_PUBLIC_URL`, `WP_ADMIN_PASSWORD`, and `LEARNDASH_LICENSE_KEY`
+- **`.env.example`** — committed template showing required variables without values
+- **Production DB credentials** — managed by Railway, injected as env vars via reference variables (`${{MySQL.MYSQLHOST}}`, etc.)
+- **No secrets in the repo** — all sensitive values live in `.env` locally or in Railway's environment variable UI
 
-- **Database password**: Set via `fly secrets set WORDPRESS_DB_PASSWORD=...` — injected as an environment variable at runtime, never written to disk or committed to git
-- **Admin password**: Stored in `.env` (gitignored), used by the import script to reset credentials after a database sync
-- **`.env.example`**: Committed as a template showing what variables are needed, without actual values
+### File upload to Railway
+
+Railway normally only uploads git-tracked files. The LearnDash plugin zip (`sfwd-lms.5.0.2.zip`) is gitignored (it's a 20MB binary), so `make deploy` uses `railway up --no-gitignore` to include it. The `.dockerignore` file controls what enters the Docker build context instead.
 
 ## Lessons Learned
 
-Building this workflow surfaced several non-obvious issues:
+**WordPress stores absolute URLs everywhere.** Every link, image, and site reference is a full URL in the database (`http://localhost:8000/wp-content/uploads/photo.jpg`). Moving between environments requires `wp search-replace` across all tables. It handles serialized PHP data too — a naive find-and-replace would corrupt serialized string lengths.
 
-**WordPress stores absolute URLs in the database.** Every link, image src, and site reference is stored as a full URL (e.g., `http://localhost:8000/wp-content/uploads/photo.jpg`). Moving between environments requires a search-replace across the entire database. WP-CLI's `search-replace` command handles this, including serialized PHP data in `wp_options`.
+**Custom entrypoints replace, not extend, the base image's.** Defining `ENTRYPOINT` in a Dockerfile overwrites the parent image's entrypoint entirely. The WordPress image's entrypoint generates `wp-config.php` from environment variables — critical behavior that's lost if you don't call it from your own entrypoint.
 
-**PHP's `localhost` vs `127.0.0.1` behavior matters.** When `WORDPRESS_DB_HOST` is set to `localhost`, PHP's MySQL driver uses a Unix socket instead of TCP. In a container where the socket path isn't configured, this silently fails with "Error establishing a database connection." Using `127.0.0.1` forces TCP and works reliably.
+**Keep the database out of the application container.** Bundling MariaDB with supervisord inside a 512MB VM caused persistent OOM crashes. A managed database service eliminates this class of problems entirely — simpler Dockerfile, faster boots, no process manager.
 
-**Docker entrypoints are inherited, not composed.** Defining a custom `ENTRYPOINT` in a Dockerfile completely replaces the base image's entrypoint. The WordPress image's entrypoint does essential work (copying files, creating wp-config.php), so our custom entrypoint must explicitly invoke it.
+**Railway re-enables Apache MPM modules at runtime.** Even after `a2dismod mpm_event` at build time, Railway's runtime layer re-enables it, causing "More than one MPM loaded" crashes. The fix is to remove the conflicting module symlinks in the entrypoint at runtime, not at build time.
 
-**MariaDB's Debian package creates real directories.** `apt-get install mariadb-server` creates `/var/lib/mysql` as a real directory. You can't symlink over a non-empty directory with `ln -sfn` — you must `rm -rf` it first, then create the symlink to the persistent volume.
+**`railway ssh` has argument quoting limitations.** Arguments with spaces get split into separate words, and `bash -c` wrappers swallow certain flags like `--allow-root`. For simple commands (no spaces) it works fine. For complex operations, connect directly to Railway's public MySQL endpoint or use the wp-admin dashboard.
 
-**Supervisord replaces an init system.** In a normal Linux system, systemd manages services. Containers don't have systemd, so running multiple processes (Apache + MariaDB) requires a process manager. Supervisord fills this role, keeping both processes running and restarting them if they crash.
+**Railway requires a `PORT` environment variable.** Even though the Dockerfile `EXPOSE`s port 80, Railway doesn't route public traffic to the container without an explicit `PORT=80` env var.
+
+**`railway up` uses git-tracked files by default.** Files matching `.gitignore` patterns aren't uploaded to Railway. The `--no-gitignore` flag overrides this, and `.dockerignore` then controls what enters the Docker build context.
+
+**Don't `source .env` in bash scripts.** Values with spaces and special characters break shell parsing. Use `grep '^VAR_NAME=' .env | cut -d= -f2-` to extract individual variables safely.
 
 ## Project Structure
 
 ```
 ├── config/
-│   ├── php.ini                 # PHP overrides (upload limits, memory)
-│   └── supervisord.conf        # Production: Apache + MariaDB process manager
+│   └── php.ini                    # PHP overrides (upload limits, memory)
+├── plugins/
+│   └── plum-village-blocks/       # Custom Gutenberg block plugin
+│       ├── src/                   # Block source (JSX)
+│       └── build/                 # Compiled block assets
+├── themes/
+│   └── plum-village/              # Custom block theme
+│       ├── theme.json             # Theme settings and styles
+│       ├── functions.php          # Theme functions
+│       ├── templates/             # Block templates
+│       ├── parts/                 # Template parts
+│       └── patterns/              # Block patterns
 ├── scripts/
-│   ├── setup.sh                # Local WP install via WP-CLI
-│   ├── entrypoint.sh           # Production container boot sequence
-│   ├── export-content.sh       # Dump local DB to data/seed.sql
-│   └── import-content.sh       # Push DB to Fly.io with URL rewrite
-├── docker-compose.yml          # Local dev: WordPress + MariaDB + WP-CLI + Adminer
-├── Dockerfile                  # Production: WordPress + MariaDB (single container)
-├── fly.toml                    # Fly.io configuration
-└── Makefile                    # Common commands
+│   ├── setup.sh                   # Local WP install via WP-CLI
+│   ├── entrypoint.sh              # Production container boot sequence
+│   ├── export-content.sh          # Dump local DB → data/seed.sql
+│   └── import-content.sh          # Push DB to Railway + URL rewrite
+├── data/                          # (gitignored) Database dumps
+│   └── seed.sql
+├── docker-compose.yml             # Local dev: 4 services
+├── Dockerfile                     # Production: WordPress + Apache
+├── Makefile                       # All commands
+├── .env.example                   # Environment variable template
+├── .dockerignore                  # Controls Docker build context
+├── .railwayignore                 # Controls Railway upload context
+└── sfwd-lms.5.0.2.zip            # (gitignored) LearnDash plugin
 ```

@@ -22,7 +22,7 @@ import-prod:
 	bash scripts/import-content.sh
 
 deploy:
-	fly deploy
+	railway up --no-gitignore
 
 theme-activate:
 	docker compose run --rm wpcli wp theme activate plum-village

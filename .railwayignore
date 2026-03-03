@@ -1,0 +1,18 @@
+# Environment secrets
+.env
+
+# WordPress core (managed by Docker)
+wp-content/
+
+# Database dumps
+data/
+
+# Node modules (block plugin)
+plugins/plum-village-blocks/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+db_data/
