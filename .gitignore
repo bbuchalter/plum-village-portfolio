@@ -1,0 +1,18 @@
+# Environment secrets
+.env
+
+# WordPress core (managed by Docker)
+wp-content/
+
+# Database dumps
+data/
+
+# LearnDash plugin zip (large binary)
+sfwd-lms.*.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+db_data/
