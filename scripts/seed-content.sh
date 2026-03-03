@@ -253,11 +253,7 @@ if [ -z "$PORTFOLIO_ID" ]; then
         --post_title="Technical Skills Portfolio" \
         --post_name="$PORTFOLIO_SLUG" \
         --post_status=publish \
-        --post_content='<!-- wp:heading {"level":1} -->
-<h1>Technical Skills Portfolio</h1>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
+        --post_content='<!-- wp:paragraph -->
 <p>This site is a working demo built for the <strong>Senior Web Developer</strong> role at the Thich Nhat Hanh Foundation. Every feature listed below runs on this site — built with WordPress, LearnDash, custom PHP, JavaScript, and modern deployment practices.</p>
 <!-- /wp:paragraph -->
 
