@@ -52,3 +52,25 @@ function plum_village_register_pattern_category() {
 	);
 }
 add_action( 'init', 'plum_village_register_pattern_category' );
+
+/**
+ * LearnDash template overrides.
+ *
+ * Points LearnDash to our custom templates in themes/plum-village/learndash/.
+ */
+function plum_village_learndash_template( $filepath, $name, $args, $echo, $return_file_path ) {
+	$theme_template = get_stylesheet_directory() . '/learndash/' . $name . '.php';
+	if ( file_exists( $theme_template ) ) {
+		return $theme_template;
+	}
+	return $filepath;
+}
+add_filter( 'learndash_template', 'plum_village_learndash_template', 10, 5 );
+
+/**
+ * Set LearnDash course grid to 3 columns.
+ */
+function plum_village_course_grid_columns() {
+	return 3;
+}
+add_filter( 'learndash_course_grid_columns', 'plum_village_course_grid_columns' );

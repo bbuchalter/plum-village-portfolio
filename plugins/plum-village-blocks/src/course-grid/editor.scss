@@ -1,0 +1,17 @@
+.wp-block-plum-village-course-grid {
+    // Ensure the ServerSideRender preview fills the block width
+    .components-server-side-render {
+        width: 100%;
+    }
+
+    // Empty state in editor
+    &__empty {
+        background: #FAF7F0;
+        border: 2px dashed #E8EDE5;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        color: #6B4423;
+        font-style: italic;
+    }
+}

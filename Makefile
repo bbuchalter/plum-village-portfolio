@@ -1,4 +1,4 @@
-.PHONY: up down logs wp setup export import-prod deploy theme-activate plugin-activate learndash-install block-dev block-build
+.PHONY: up down logs wp setup seed export import-prod deploy theme-activate plugin-activate learndash-install block-dev block-build
 
 up:
 	docker compose up -d
@@ -14,6 +14,9 @@ wp:
 
 setup:
 	bash scripts/setup.sh
+
+seed:
+	docker compose run --rm wpcli bash /var/www/html/scripts/seed-content.sh
 
 export:
 	bash scripts/export-content.sh
@@ -31,8 +34,8 @@ plugin-activate:
 	docker compose run --rm wpcli wp plugin activate plum-village-blocks
 
 learndash-install:
-	docker compose cp sfwd-lms.5.0.2.zip wordpress:/tmp/sfwd-lms.zip
-	docker compose run --rm wpcli wp plugin install /var/www/html/../tmp/sfwd-lms.zip --activate
+	docker compose cp sfwd-lms.5.0.2.zip wordpress:/var/www/html/sfwd-lms.zip
+	docker compose run --rm wpcli wp plugin install /var/www/html/sfwd-lms.zip --activate
 
 block-dev:
 	cd plugins/plum-village-blocks && npm start

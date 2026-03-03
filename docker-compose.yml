@@ -28,6 +28,7 @@ services:
       - wp_data:/var/www/html
       - ./themes/plum-village:/var/www/html/wp-content/themes/plum-village
       - ./plugins/plum-village-blocks:/var/www/html/wp-content/plugins/plum-village-blocks
+      - ./config/php.ini:/usr/local/etc/php/conf.d/custom.ini
 
   wpcli:
     image: wordpress:cli
@@ -43,6 +44,7 @@ services:
       - wp_data:/var/www/html
       - ./themes/plum-village:/var/www/html/wp-content/themes/plum-village
       - ./plugins/plum-village-blocks:/var/www/html/wp-content/plugins/plum-village-blocks
+      - ./scripts:/var/www/html/scripts
     user: "33:33"
 
   adminer:
